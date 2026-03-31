@@ -66,7 +66,7 @@ export default function Home() {
                   {section.items.map((item, i) => (
                     <Link 
                       key={i} 
-                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : "#"} 
+                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : item.includes("RVSFs") ? "/rvsf" : "#"} 
                       className="menu-sub-item"
                       onClick={() => setShowMegaMenu(false)}
                     >
@@ -107,7 +107,13 @@ export default function Home() {
           </div>
           <div className="nav-profile">
             <div className="profile-mini-avatar">AD</div>
-            <span className="profile-name">Admin User</span>
+            <div className="profile-info-group">
+              <span className="profile-name">Admin User</span>
+              <button className="logout-button" onClick={() => {
+                document.cookie = "auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = '/login';
+              }}>Logout</button>
+            </div>
           </div>
           <div className="mega-menu-trigger" onClick={(e) => { e.stopPropagation(); setShowMegaMenu(true); }}>
             ☰
@@ -138,6 +144,13 @@ export default function Home() {
           onClick={() => setActiveSubTab("Manage Organization")}
         >
           Manage Organization
+        </Link>
+        <Link 
+          href="/rvsf" 
+          className={`sub-nav-item ${activeSubTab === "Manage RVSFs" ? "active" : ""}`}
+          onClick={() => setActiveSubTab("Manage RVSFs")}
+        >
+          Manage RVSFs
         </Link>
       </nav>
 

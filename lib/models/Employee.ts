@@ -9,6 +9,7 @@ export interface IEmployee extends Document {
   organization: string;
   rvsf: string;
   designation: string;
+  password?: string;
   passwordExpiry: Date;
   dob?: Date;
   anniversary?: Date;
@@ -29,6 +30,7 @@ const employeeSchema = new Schema<IEmployee>({
   organization: { type: String, required: true },
   rvsf: { type: String, required: true },
   designation: { type: String, required: true },
+  password: { type: String, required: true },
   passwordExpiry: { type: Date, required: true, default: () => new Date('9999-12-31') },
   dob: { type: Date },
   anniversary: { type: Date },

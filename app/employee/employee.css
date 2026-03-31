@@ -130,11 +130,33 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+.employee-portal .profile-info-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .employee-portal .profile-name {
   font-size: 13px;
   font-weight: 700; /* Bolder */
   color: #ffffff;
   letter-spacing: -0.01em;
+}
+.employee-portal .logout-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0;
+  margin-top: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s;
+}
+.employee-portal .logout-button:hover {
+  color: #ef4444;
 }
 
 /* Action Bar (Secondary Nav) */
@@ -193,18 +215,23 @@
   gap: 10px;
   letter-spacing: -0.01em;
 }
-.employee-portal .breadcrumb span {
+.employee-portal .breadcrumb .breadcrumb-item {
+  color: #64748b;
+  text-decoration: none;
   cursor: pointer;
   transition: all 0.2s;
   padding: 4px 8px;
   border-radius: 6px;
 }
-.employee-portal .breadcrumb span:hover {
+.employee-portal .breadcrumb .breadcrumb-item:hover {
   color: #0f172a;
   background: #f1f5f9;
 }
+.employee-portal .breadcrumb .breadcrumb-item.active {
+  color: #0f172a;
+}
 .employee-portal .breadcrumb .separator {
-  color: #94a3b8;
+  color: #cbd5e1;
   font-size: 16px;
   padding: 0;
 }
@@ -729,4 +756,137 @@
   .employee-portal .toolbar { flex-direction: column; align-items: stretch; }
   .employee-portal .search-wrap, .employee-portal select { width: 100%; }
   .employee-portal table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
+/* Mega Menu Overhaul copied from home */
+.mega-menu-trigger {
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.05);
+}
+
+.mega-menu-trigger:hover {
+  background: rgba(255,255,255,0.15);
+  transform: rotate(90deg);
+}
+
+.mega-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  z-index: 2000;
+  padding: 100px 40px 60px;
+  overflow-y: auto;
+  animation: megaMenuPop 0.3s ease-out;
+  color: #1e293b;
+  text-align: left;
+}
+
+@keyframes megaMenuPop {
+  from { opacity: 0; transform: scale(1.05); filter: blur(10px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+.mega-menu-header {
+  position: absolute;
+  top: 30px;
+  right: 60px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.mega-menu-header span {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.close-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.mega-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.menu-column {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.column-title {
+  background: #60a5fa; /* Blue header from image */
+  color: white;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.column-items {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-sub-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #374151; /* Dark grey items from image */
+  color: white !important;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.menu-sub-item:hover {
+  background: #1f2937;
+  transform: translateX(4px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.menu-sub-item .in-progress {
+  background: rgba(255,255,255,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
 }

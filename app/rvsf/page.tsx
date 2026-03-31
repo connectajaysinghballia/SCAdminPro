@@ -4,29 +4,43 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import "../employee/employee.css";
 
-interface Organization {
+interface Rvsf {
   _id?: string;
+  organizationName: string;
   name: string;
-  gst: string;
-  contactNumber: string;
   contactPerson: string;
+  contactNumber: string;
   email: string;
-  location: string;
-  state: string;
-  city: string;
+  address: string;
+  locationName: string;
   pincode: string;
+  createdBy?: string;
+  createdAt?: string;
 }
 
-const API_URL = "/api/organizations";
+const API_URL = "/api/rvsfs";
 
-export default function OrganizationPortal() {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+export default function RvsfPortal() {
+  const [rvsfs, setRvsfs] = useState<Rvsf[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [selectedRvsf, setSelectedRvsf] = useState<Rvsf | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
+  const [toast, setToast] = useState({ show: false, title: "", msg: "" });
+  const [dynamicOrgs, setDynamicOrgs] = useState<string[]>([]);
+
+  const [formData, setFormData] = useState<Rvsf>({
+    organizationName: "",
+    name: "",
+    contactPerson: "",
+    contactNumber: "",
+    email: "",
+    address: "",
+    locationName: "",
+    pincode: "",
+  });
 
   const menuSections = [
     {
@@ -58,41 +72,41 @@ export default function OrganizationPortal() {
       items: ["Manage Lead Rejection Reasons", "Dynamic Storage Options", "Dynamic Storage Options", "Manage Fuel Type", "Manage Item Categories", "Manage Item Groups", "Manage Item Stocking Location", "Manage Lead Rejection", "Manage Lead Source", "Manage RTOs", "Manage Spares & Scrap Items", "Manage Vehicle Class", "Manage Vehicle Color"]
     }
   ];
-  const [toast, setToast] = useState({ show: false, title: "", msg: "" });
-
-  const [formData, setFormData] = useState<Organization>({
-    name: "",
-    gst: "",
-    contactNumber: "",
-    contactPerson: "",
-    email: "",
-    location: "",
-    state: "",
-    city: "",
-    pincode: "",
-  });
 
   const showToast = (title: string, msg: string) => {
     setToast({ show: true, title, msg });
     setTimeout(() => setToast({ show: false, title: "", msg: "" }), 3000);
   };
 
-  const fetchOrganizations = async () => {
+  const fetchRvsfs = async () => {
     try {
       const res = await fetch(`${API_URL}?search=${search}`);
       const data = await res.json();
       if (data.success) {
-        setOrganizations(data.data);
+        setRvsfs(data.data);
       }
     } catch (err) {
-      showToast("Error", "Failed to fetch data.");
+      showToast("Error", "Failed to fetch RVSF data.");
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchDynamicOrgs = async () => {
+    try {
+      const res = await fetch("/api/organizations");
+      const result = await res.json();
+      if (result.success) {
+        setDynamicOrgs(result.data.map((o: any) => o.name));
+      }
+    } catch (err) {
+      console.error("Failed to fetch organizations:", err);
+    }
+  };
+
   useEffect(() => {
-    fetchOrganizations();
+    fetchRvsfs();
+    fetchDynamicOrgs();
   }, [search]);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -105,10 +119,10 @@ export default function OrganizationPortal() {
       });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "Organization added successfully.");
+        showToast("Success", "RVSF added successfully.");
         setShowAddModal(false);
-        setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" });
-        fetchOrganizations();
+        setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" });
+        fetchRvsfs();
       }
     } catch (err) {
       showToast("Error", "Network or server error.");
@@ -117,18 +131,18 @@ export default function OrganizationPortal() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedOrg?._id) return;
+    if (!selectedRvsf?._id) return;
     try {
-      const res = await fetch(`${API_URL}/${selectedOrg._id}`, {
+      const res = await fetch(`${API_URL}/${selectedRvsf._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "Organization updated.");
+        showToast("Success", "RVSF updated successfully.");
         setShowEditModal(false);
-        fetchOrganizations();
+        fetchRvsfs();
       }
     } catch (err) {
       showToast("Error", "Update failed.");
@@ -136,24 +150,24 @@ export default function OrganizationPortal() {
   };
 
   const handleDelete = async () => {
-    if (!selectedOrg?._id) return;
-    if (!confirm("Are you sure you want to delete this organization?")) return;
+    if (!selectedRvsf?._id) return;
+    if (!confirm("Are you sure you want to delete this RVSF?")) return;
     try {
-      const res = await fetch(`${API_URL}/${selectedOrg._id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/${selectedRvsf._id}`, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "Organization deleted.");
-        setSelectedOrg(null);
-        fetchOrganizations();
+        showToast("Success", "RVSF deleted successfully.");
+        setSelectedRvsf(null);
+        fetchRvsfs();
       }
     } catch (err) {
       showToast("Error", "Delete failed.");
     }
   };
 
-  const openEdit = (org: Organization) => {
-    setSelectedOrg(org);
-    setFormData(org);
+  const openEdit = (rvsf: Rvsf) => {
+    setSelectedRvsf(rvsf);
+    setFormData(rvsf);
     setShowEditModal(true);
   };
 
@@ -193,10 +207,11 @@ export default function OrganizationPortal() {
           </div>
         </div>
       )}
+
       {toast.show && (
-        <div className="toast">
+        <div className="toast show" style={{ display: 'block' }}>
           <strong>{toast.title}</strong>
-          {toast.msg}
+          <div>{toast.msg}</div>
         </div>
       )}
 
@@ -242,7 +257,7 @@ export default function OrganizationPortal() {
           <div className="breadcrumb">
             <Link href="/" className="breadcrumb-item">Home</Link>
             <span className="separator">›</span>
-            <Link href="/organization" className="breadcrumb-item active current">Manage Organization</Link>
+            <Link href="/rvsf" className="breadcrumb-item active current">Manage RVSFs</Link>
           </div>
         </div>
       </div>
@@ -250,37 +265,36 @@ export default function OrganizationPortal() {
       <div className="container">
         <section className="hero card">
           <div>
-            <h1>Organization Info</h1>
-            <p className="sub">Manage and track organization details, GST, and contact points below.</p>
+            <div className="pill">🏭 RVSF Management</div>
+            <h1>RVSF Info</h1>
+            <p className="sub">Add, manage, and track Registered Vehicle Scrapping Facilities (RVSF) across organizations.</p>
           </div>
           <div className="actions">
-            <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" }); }}>
-              <span style={{ fontSize: '20px' }}>+</span> Add Organization
+            <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" }); }}>
+              <span style={{ fontSize: '20px' }}>+</span> Add RVSF
             </button>
           </div>
         </section>
 
-        <div className="panel">
-          <div className="panel-header">
+        <div className="panel card" style={{ padding: '0px' }}>
+          <div className="panel-header" style={{ padding: '24px' }}>
             <div>
-              <h2 className="title">Organization List</h2>
-              <p className="desc">Total {organizations.length} entries found</p>
+              <h2 className="title">RVSF Master List</h2>
+              <p className="desc">Listing of all registered scrapping facilities in the network.</p>
             </div>
             <div className="toolbar">
               <div className="search-wrap">
                 <span className="icon">🔍</span>
                 <input 
                   type="text" 
-                  placeholder="Search by name, person or location..." 
+                  placeholder="Search RVSF, contact or location..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" }); }}>
-                ＋ Add
-              </button>
-              <button className="btn btn-outline" disabled={!selectedOrg} onClick={() => selectedOrg && openEdit(selectedOrg)}>Edit</button>
-              <button className="btn btn-danger" disabled={!selectedOrg} onClick={handleDelete}>Delete</button>
+              <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" }); }}>+ Add RHSV</button>
+              <button className="btn btn-outline" disabled={!selectedRvsf} onClick={() => selectedRvsf && openEdit(selectedRvsf)}>✎ Edit</button>
+              <button className="btn btn-danger" disabled={!selectedRvsf} onClick={handleDelete}>🗑 Delete</button>
             </div>
           </div>
 
@@ -289,99 +303,104 @@ export default function OrganizationPortal() {
               <thead>
                 <tr>
                   <th>S No.</th>
-                  <th>Name</th>
-                  <th>Gst</th>
+                  <th>Organization name</th>
+                  <th>Rvsf name</th>
+                  <th>Contact person</th>
                   <th>Contact nbr</th>
-                  <th>Cntct person name</th>
-                  <th>Email id</th>
+                  <th>Email</th>
+                  <th>Address</th>
                   <th>Location name</th>
-                  <th>State</th>
-                  <th>City</th>
                   <th>Pincode</th>
+                  <th>Created by</th>
+                  <th>Created on</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
-                ) : organizations.length === 0 ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>No entries found</td></tr>
-                ) : organizations.map((org, index) => (
+                  <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>Loading RVSF data...</td></tr>
+                ) : rvsfs.length === 0 ? (
+                  <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>No RVSF records found.</td></tr>
+                ) : rvsfs.map((rvsf, index) => (
                   <tr 
-                    key={org._id} 
-                    onClick={() => setSelectedOrg(org)}
-                    className={selectedOrg?._id === org._id ? "selected" : ""}
+                    key={rvsf._id} 
+                    onClick={() => setSelectedRvsf(rvsf)}
+                    className={selectedRvsf?._id === rvsf._id ? "selected" : ""}
                   >
                     <td>{index + 1}</td>
-                    <td style={{ fontWeight: '700' }}>{org.name}</td>
-                    <td>{org.gst || "—"}</td>
-                    <td>{org.contactNumber || "—"}</td>
-                    <td>{org.contactPerson || "—"}</td>
-                    <td>{org.email || "—"}</td>
-                    <td>{org.location || "—"}</td>
-                    <td>{org.state || "—"}</td>
-                    <td>{org.city || "—"}</td>
-                    <td>{org.pincode || "—"}</td>
+                    <td style={{ fontWeight: '500' }}>{rvsf.organizationName}</td>
+                    <td style={{ fontWeight: '700' }}>{rvsf.name}</td>
+                    <td>{rvsf.contactPerson || "—"}</td>
+                    <td>{rvsf.contactNumber || "—"}</td>
+                    <td>{rvsf.email || "—"}</td>
+                    <td><div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rvsf.address || "—"}</div></td>
+                    <td>{rvsf.locationName || "—"}</td>
+                    <td>{rvsf.pincode || "—"}</td>
+                    <td><span className="badge tag">{rvsf.createdBy || "Admin"}</span></td>
+                    <td style={{ fontSize: '11px' }}>{rvsf.createdAt ? new Date(rvsf.createdAt).toLocaleString('en-IN') : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="footer-note" style={{ padding: '16px 24px' }}>
+            <div>Total {rvsfs.length} facility records</div>
+            <div>{selectedRvsf ? `Selected: ${selectedRvsf.name}` : "Click a row to manage facility details"}</div>
           </div>
         </div>
       </div>
 
       {/* Add/Edit Modal */}
       {(showAddModal || showEditModal) && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) { setShowAddModal(false); setShowEditModal(false); } }}>
           <div className="modal">
             <div className="modal-header">
               <div>
-                <h3 className="modal-title">{showAddModal ? "Add New Organization" : "Edit Organization"}</h3>
-                <p className="modal-sub">{showAddModal ? "Enter company and contact details below." : "Modify organization information."}</p>
+                <h3 className="modal-title">{showAddModal ? "Register New RVSF" : "Edit RVSF Details"}</h3>
+                <p className="modal-sub">Ensure all facility contact information is accurate for portal access.</p>
               </div>
               <button className="close" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>×</button>
             </div>
             <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit}>
               <div className="form-grid">
                 <div className="field">
-                  <label>Organization Name <span className="req">*</span></label>
-                  <input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                  <label>Organization name <span className="req">*</span></label>
+                  <select required value={formData.organizationName} onChange={(e) => setFormData({...formData, organizationName: e.target.value})}>
+                    <option value="">Select Organization</option>
+                    {dynamicOrgs.map(org => <option key={org} value={org}>{org}</option>)}
+                  </select>
                 </div>
                 <div className="field">
-                  <label>Gst</label>
-                  <input value={formData.gst} onChange={(e) => setFormData({...formData, gst: e.target.value})} />
+                  <label>Rvsf name <span className="req">*</span></label>
+                  <input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. SCRAP CENTRE" />
                 </div>
                 <div className="field">
-                  <label>Cntct person name</label>
-                  <input value={formData.contactPerson} onChange={(e) => setFormData({...formData, contactPerson: e.target.value})} />
+                  <label>Contact person</label>
+                  <input value={formData.contactPerson} onChange={(e) => setFormData({...formData, contactPerson: e.target.value})} placeholder="Full Name" />
                 </div>
                 <div className="field">
-                  <label>Contact nbr</label>
-                  <input value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value})} />
+                  <label>Contact number</label>
+                  <input value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value})} placeholder="Mobile Number" />
                 </div>
                 <div className="field">
-                  <label>Email id</label>
-                  <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                  <label>Email ID</label>
+                  <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} placeholder="facility@email.com" />
                 </div>
                 <div className="field">
                   <label>Location name</label>
-                  <input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} />
-                </div>
-                <div className="field">
-                  <label>City</label>
-                  <input value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} />
-                </div>
-                <div className="field">
-                  <label>State</label>
-                  <input value={formData.state} onChange={(e) => setFormData({...formData, state: e.target.value})} />
+                  <input value={formData.locationName} onChange={(e) => setFormData({...formData, locationName: e.target.value})} placeholder="e.g. Dibiyapur" />
                 </div>
                 <div className="field">
                   <label>Pincode</label>
-                  <input value={formData.pincode} onChange={(e) => setFormData({...formData, pincode: e.target.value})} />
+                  <input value={formData.pincode} onChange={(e) => setFormData({...formData, pincode: e.target.value})} placeholder="6-digit PIN" />
+                </div>
+                <div className="field" style={{ gridColumn: 'span 2' }}>
+                  <label>Full Address</label>
+                  <input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} placeholder="Street, Industrial Area, Building..." />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{showAddModal ? "Add Organization" : "Save Changes"}</button>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">{showAddModal ? "Register Facility" : "Save RVSF Changes"}</button>
               </div>
             </form>
           </div>

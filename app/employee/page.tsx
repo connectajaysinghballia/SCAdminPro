@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import "./employee.css";
+import Link from "next/link";
 import { Employee, organizations, rvsfByOrganization, designations } from "../../types/employee";
 
 const API_URL = "/api/employees";
@@ -11,6 +12,7 @@ export default function EmployeePortal() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showMegaMenu, setShowMegaMenu] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"employees" | "hierarchy">("employees");
   const [search, setSearch] = useState("");
@@ -24,6 +26,37 @@ export default function EmployeePortal() {
   const [formData, setFormData] = useState<Partial<Employee>>({});
   const [supervisorSelect, setSupervisorSelect] = useState<string>("none");
   const [dynamicOrgs, setDynamicOrgs] = useState<string[]>([]);
+
+  const menuSections = [
+    {
+      title: "Manage Account",
+      items: ["Manage Employees", "Manage Organization", "Manage Roles", "Manage RVSFs", "User Designations"]
+    },
+    {
+      title: "Purchases",
+      items: ["Manage ELV Leads", "Manage Approvals", "Manage Auctions", "Manage ELV Leads", "Manage Lead Logistics", "Manage Suppliers", "Manage Vehicle Purchases", "Purchase Payments Management (In Progress)", "Vehicle Owners Directory"]
+    },
+    {
+      title: "Shop Floor",
+      items: ["Certificates (In Progress)", "Manage Item Loss Reasons", "Manage Job Wise works", "Manage Workstations", "Scrapping History", "Scrapping Queue", "Scrapping Requests"]
+    },
+    {
+      title: "Stores",
+      items: ["Existing Stock", "Inventory Management", "Refurbishment", "Scrap & Bale Inventory", "Stock-in History (In Progress)", "Store Management"]
+    },
+    {
+      title: "Sales",
+      items: ["Manage Business Customer", "Counter Sales", "Manage Business Customer", "Manage Customers", "Sales History"]
+    },
+    {
+      title: "Reports",
+      items: ["Performance Dashboard", "Business Dashboard (In Progress)", "Dismantling Operations (In Progress)", "ELV Purchase Reports", "ELV Status Tracking", "Email Audits", "Performance Dashboard", "Scrap/ Part Sales (In Progress)", "Scrapping Reports (In Progress)", "View Logs"]
+    },
+    {
+      title: "Master Data",
+      items: ["Manage Lead Rejection Reasons", "Dynamic Storage Options", "Dynamic Storage Options", "Manage Fuel Type", "Manage Item Categories", "Manage Item Groups", "Manage Item Stocking Location", "Manage Lead Rejection", "Manage Lead Source", "Manage RTOs", "Manage Spares & Scrap Items", "Manage Vehicle Class", "Manage Vehicle Color"]
+    }
+  ];
 
   const fetchDynamicOrgs = async () => {
     try {
@@ -64,10 +97,14 @@ export default function EmployeePortal() {
       const res = await fetch(`${API_URL}?search=${encodeURIComponent(search)}&orgFilter=${encodeURIComponent(orgFilter)}`);
       const result = await res.json();
       if (result.success) {
+        console.log("Employees fetched:", result.data);
         setEmployees(result.data);
         if (!silent) showToast("Refreshed", "Employee data updated from server.");
+      } else {
+        showToast("Error", result.error || "Failed to fetch employees.");
       }
     } catch (err) {
+      console.error("Fetch error:", err);
       showToast("Error", "Failed to fetch employees from server.");
     } finally {
       setIsRefreshing(false);
@@ -75,6 +112,12 @@ export default function EmployeePortal() {
   };
 
   useEffect(() => {
+    // Initial fetch on mount
+    fetchEmployees(true);
+  }, []);
+
+  useEffect(() => {
+    // Debounced fetch on search/filter changes
     const t = setTimeout(() => fetchEmployees(true), 300);
     return () => clearTimeout(t);
   }, [search, orgFilter]);
@@ -294,7 +337,42 @@ export default function EmployeePortal() {
   }, [employees]);
 
   return (
-    <div className="employee-portal">
+    <div className="employee-portal" onClick={() => setShowMegaMenu(false)}>
+      {showMegaMenu && (
+        <div className="mega-menu-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="mega-menu-header">
+            <span>Mega Menu</span>
+            <button className="close-btn" onClick={() => setShowMegaMenu(false)}>×</button>
+          </div>
+          <div className="mega-menu-grid">
+            {menuSections.map((section, idx) => (
+              <div key={idx} className="menu-column">
+                <div className="column-title">{section.title}</div>
+                <div className="column-items">
+                  {section.items.map((item, i) => (
+                    <Link 
+                      key={i} 
+                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : item.includes("RVSFs") ? "/rvsf" : "#"} 
+                      className="menu-sub-item"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      {item.includes("(In Progress)") ? (
+                        <>
+                          <span>{item.replace("(In Progress)", "")}</span>
+                          <span className="in-progress">In Progress</span>
+                        </>
+                      ) : (
+                        item
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <nav className="slim-navbar">
         <div className="nav-container">
           <div className="nav-logo">
@@ -314,7 +392,16 @@ export default function EmployeePortal() {
           </div>
           <div className="nav-profile">
             <div className="profile-mini-avatar">AD</div>
-            <span className="profile-name">Admin User</span>
+            <div className="profile-info-group">
+              <span className="profile-name">Admin User</span>
+              <button className="logout-button" onClick={() => {
+                document.cookie = "auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = '/login';
+              }}>Logout</button>
+            </div>
+          </div>
+          <div className="mega-menu-trigger" onClick={(e) => { e.stopPropagation(); setShowMegaMenu(true); }}>
+            ☰
           </div>
         </div>
       </nav>
@@ -327,7 +414,9 @@ export default function EmployeePortal() {
             <button className="nav-action-btn" onClick={() => window.location.href = '/'} title="Home">⌂</button>
           </div>
           <div className="breadcrumb">
-            <span>Home</span> <span className="separator">›</span> <span>Manage Employees</span> <span className="separator">›</span> <span className="current">Master Grid</span>
+             <Link href="/" className="breadcrumb-item">Home</Link>
+             <span className="separator">›</span>
+             <Link href="/employee" className="breadcrumb-item active current">Manage Employees</Link>
           </div>
         </div>
       </div>
