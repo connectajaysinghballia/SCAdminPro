@@ -1,65 +1,213 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import "./home.css";
 
 export default function Home() {
+  const [activeSubTab, setActiveSubTab] = useState("Shop Floor");
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [showMegaMenu, setShowMegaMenu] = useState(false);
+
+  const stats = [
+    { label: "Yet to Start", value: "0", icon: "🛠️" },
+    { label: "Digital Inspections", value: "0", icon: "📋" },
+    { label: "Certificates of Deposit", value: "0", icon: "🚛" },
+    { label: "Under De-pollution", value: "0", icon: "🧼" },
+    { label: "Under Dismantling", value: "0", icon: "🔨" },
+    { label: "Certificates of Destruction", value: "0", icon: "📄" },
+  ];
+
+  const menuSections = [
+    {
+      title: "Manage Account",
+      items: ["Manage Employees", "Manage Organization", "Manage Roles", "Manage RVSFs", "User Designations"]
+    },
+    {
+      title: "Purchases",
+      items: ["Manage ELV Leads", "Manage Approvals", "Manage Auctions", "Manage ELV Leads", "Manage Lead Logistics", "Manage Suppliers", "Manage Vehicle Purchases", "Purchase Payments Management (In Progress)", "Vehicle Owners Directory"]
+    },
+    {
+      title: "Shop Floor",
+      items: ["Certificates (In Progress)", "Manage Item Loss Reasons", "Manage Job Wise works", "Manage Workstations", "Scrapping History", "Scrapping Queue", "Scrapping Requests"]
+    },
+    {
+      title: "Stores",
+      items: ["Existing Stock", "Inventory Management", "Refurbishment", "Scrap & Bale Inventory", "Stock-in History (In Progress)", "Store Management"]
+    },
+    {
+      title: "Sales",
+      items: ["Manage Business Customer", "Counter Sales", "Manage Business Customer", "Manage Customers", "Sales History"]
+    },
+    {
+      title: "Reports",
+      items: ["Performance Dashboard", "Business Dashboard (In Progress)", "Dismantling Operations (In Progress)", "ELV Purchase Reports", "ELV Status Tracking", "Email Audits", "Performance Dashboard", "Scrap/ Part Sales (In Progress)", "Scrapping Reports (In Progress)", "View Logs"]
+    },
+    {
+      title: "Master Data",
+      items: ["Manage Lead Rejection Reasons", "Dynamic Storage Options", "Dynamic Storage Options", "Manage Fuel Type", "Manage Item Categories", "Manage Item Groups", "Manage Item Stocking Location", "Manage Lead Rejection", "Manage Lead Source", "Manage RTOs", "Manage Spares & Scrap Items", "Manage Vehicle Class", "Manage Vehicle Color"]
+    }
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="home-page" onClick={() => { setIsAccountMenuOpen(false); }}>
+      {/* Mega Menu Overlay */}
+      {showMegaMenu && (
+        <div className="mega-menu-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="mega-menu-header">
+            <span>Mega Menu</span>
+            <button className="close-btn" onClick={() => setShowMegaMenu(false)}>×</button>
+          </div>
+          <div className="mega-menu-grid">
+            {menuSections.map((section, idx) => (
+              <div key={idx} className="menu-column">
+                <div className="column-title">{section.title}</div>
+                <div className="column-items">
+                  {section.items.map((item, i) => (
+                    <Link 
+                      key={i} 
+                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : "#"} 
+                      className="menu-sub-item"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      {item.includes("(In Progress)") ? (
+                        <>
+                          <span>{item.replace("(In Progress)", "")}</span>
+                          <span className="in-progress">In Progress</span>
+                        </>
+                      ) : (
+                        item
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      {/* Primary Navbar */}
+      <nav className="home-navbar">
+        <div className="nav-container">
+          <div className="nav-logo">
+            <img src="/nts.png" alt="NTS Logo" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              const parent = (e.target as HTMLImageElement).parentElement;
+              if (parent) {
+                parent.innerHTML = '<div class="logo-placeholder">NTS</div>';
+              }
+            }} />
+          </div>
+          <div className="nav-title">ScrapCentre Pro</div>
+          <div className="home-nav-links">
+            <Link href="/" className="home-nav-item active">Dashboard</Link>
+            <Link href="#" className="home-nav-item">Reports</Link>
+            <Link href="#" className="home-nav-item">Settings</Link>
+          </div>
+          <div className="nav-profile">
+            <div className="profile-mini-avatar">AD</div>
+            <span className="profile-name">Admin User</span>
+          </div>
+          <div className="mega-menu-trigger" onClick={(e) => { e.stopPropagation(); setShowMegaMenu(true); }}>
+            ☰
+          </div>
         </div>
-      </main>
+      </nav>
+
+      {/* Secondary Navbar / Menu */}
+      <nav className="sub-navbar">
+        <Link href="/" className="sub-nav-home" title="Home">🏠</Link>
+        <Link 
+          href="/employee" 
+          className={`sub-nav-item ${activeSubTab === "Shop Floor" ? "active" : ""}`}
+          onClick={() => setActiveSubTab("Shop Floor")}
+        >
+          Shop Floor
+        </Link>
+        <Link 
+          href="/employee" 
+          className={`sub-nav-item ${activeSubTab === "Manage Employees" ? "active" : ""}`}
+          onClick={() => setActiveSubTab("Manage Employees")}
+        >
+          Manage Employees
+        </Link>
+        <Link 
+          href="/organization" 
+          className={`sub-nav-item ${activeSubTab === "Manage Organization" ? "active" : ""}`}
+          onClick={() => setActiveSubTab("Manage Organization")}
+        >
+          Manage Organization
+        </Link>
+      </nav>
+
+      {/* Summary Stats Cards */}
+      <div className="stats-grid">
+        {stats.map((stat, idx) => (
+          <div key={idx} className="stat-card">
+            <div className="stat-icon-wrap">{stat.icon}</div>
+            <div className="stat-content">
+               <div className="stat-label">{stat.label}</div>
+               <div className="stat-value">{stat.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search and Filter Section */}
+      <section className="search-container">
+        <div className="search-bar">
+          <span className="search-icon">🔍</span>
+          <input 
+            type="text" 
+            className="search-input" 
+            placeholder="Search registrations, VIN, or owner..." 
+          />
+          <div className="search-icons">
+             <span title="Voice search" style={{ cursor: 'pointer' }}>🎤</span>
+             <span title="Barcode scanner" style={{ cursor: 'pointer' }}>📱</span>
+          </div>
+        </div>
+        
+        <div className="filter-row">
+           <div className="filter-box" style={{ cursor: 'pointer' }}>
+             <span>📍</span> Dibiyapur <span style={{ fontSize: '10px' }}>▼</span>
+           </div>
+           <div className="filter-box" style={{ cursor: 'pointer' }}>
+             <span>📅</span> 30-03-2026 <span style={{ fontSize: '10px' }}>▼</span>
+           </div>
+        </div>
+
+        <div className="main-content">
+          <div className="empty-state" style={{ textAlign: 'center' }}>
+            Total entries 0
+          </div>
+          
+          <div className="pagination">
+            <button className="page-btn active">Prev</button>
+            <button className="page-btn active">1</button>
+            <button className="page-btn active">Next</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer Area */}
+      <footer className="home-footer">
+        <div className="footer-links">
+          <div className="footer-item">✉️ servicedesk@shamroh.com</div>
+          <div className="footer-item">📞 +91 9121223602</div>
+          <div className="footer-item">📞 +91 9121223602/10</div>
+        </div>
+        <div className="footer-links">
+           <div className="footer-item">© 2026 - Powered by Shamroh Technologies. ALL RIGHTS RESERVED</div>
+        </div>
+      </footer>
+
+      {/* Instant Support Floating Button */}
+      <div className="support-badge">
+        INSTANT SUPPORT!
+      </div>
     </div>
   );
 }
+
