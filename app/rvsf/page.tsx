@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import SubNavbar from "../../components/SubNavbar";
+import PrimaryNavbar from "../../components/PrimaryNavbar";
 import "../employee/employee.css";
 
 interface Rvsf {
@@ -16,6 +18,7 @@ interface Rvsf {
   pincode: string;
   createdBy?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 const API_URL = "/api/rvsfs";
@@ -23,11 +26,17 @@ const API_URL = "/api/rvsfs";
 export default function RvsfPortal() {
   const [rvsfs, setRvsfs] = useState<Rvsf[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedRvsf, setSelectedRvsf] = useState<Rvsf | null>(null);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [toast, setToast] = useState({ show: false, title: "", msg: "" });
   const [dynamicOrgs, setDynamicOrgs] = useState<string[]>([]);
 
@@ -42,53 +51,34 @@ export default function RvsfPortal() {
     pincode: "",
   });
 
-  const menuSections = [
-    {
-      title: "Manage Account",
-      items: ["Manage Employees", "Manage Organization", "Manage Roles", "Manage RVSFs", "User Designations"]
-    },
-    {
-      title: "Purchases",
-      items: ["Manage ELV Leads", "Manage Approvals", "Manage Auctions", "Manage ELV Leads", "Manage Lead Logistics", "Manage Suppliers", "Manage Vehicle Purchases", "Purchase Payments Management (In Progress)", "Vehicle Owners Directory"]
-    },
-    {
-      title: "Shop Floor",
-      items: ["Certificates (In Progress)", "Manage Item Loss Reasons", "Manage Job Wise works", "Manage Workstations", "Scrapping History", "Scrapping Queue", "Scrapping Requests"]
-    },
-    {
-      title: "Stores",
-      items: ["Existing Stock", "Inventory Management", "Refurbishment", "Scrap & Bale Inventory", "Stock-in History (In Progress)", "Store Management"]
-    },
-    {
-      title: "Sales",
-      items: ["Manage Business Customer", "Counter Sales", "Manage Business Customer", "Manage Customers", "Sales History"]
-    },
-    {
-      title: "Reports",
-      items: ["Performance Dashboard", "Business Dashboard (In Progress)", "Dismantling Operations (In Progress)", "ELV Purchase Reports", "ELV Status Tracking", "Email Audits", "Performance Dashboard", "Scrap/ Part Sales (In Progress)", "Scrapping Reports (In Progress)", "View Logs"]
-    },
-    {
-      title: "Master Data",
-      items: ["Manage Lead Rejection Reasons", "Dynamic Storage Options", "Dynamic Storage Options", "Manage Fuel Type", "Manage Item Categories", "Manage Item Groups", "Manage Item Stocking Location", "Manage Lead Rejection", "Manage Lead Source", "Manage RTOs", "Manage Spares & Scrap Items", "Manage Vehicle Class", "Manage Vehicle Color"]
-    }
-  ];
-
   const showToast = (title: string, msg: string) => {
     setToast({ show: true, title, msg });
-    setTimeout(() => setToast({ show: false, title: "", msg: "" }), 3000);
+    setTimeout(() => setToast({ show: false, title: "", msg: "" }), 2800);
   };
 
-  const fetchRvsfs = async () => {
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const fetchRvsfs = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_URL}?search=${search}`);
+      setLoading(true);
+      const res = await fetch(`${API_URL}?search=${encodeURIComponent(search)}`);
       const data = await res.json();
       if (data.success) {
         setRvsfs(data.data);
+        if (!silent) showToast("Refreshed", "RVSF facility records loaded.");
+      } else {
+        showToast("Error", data.error || "Failed to fetch RVSFs.");
       }
     } catch (err) {
-      showToast("Error", "Failed to fetch RVSF data.");
+      showToast("Error", "Network or server error.");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -105,12 +95,62 @@ export default function RvsfPortal() {
   };
 
   useEffect(() => {
-    fetchRvsfs();
+    fetchRvsfs(true);
     fetchDynamicOrgs();
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchRvsfs(true), 300);
+    return () => clearTimeout(t);
   }, [search]);
+
+  // Selected Item
+  const selectedRvsf = useMemo(() => {
+    return rvsfs.find((r) => r._id === selectedId) || null;
+  }, [rvsfs, selectedId]);
+
+  // Statistics calculation
+  const stats = useMemo(() => {
+    const total = rvsfs.length;
+    const orgs = new Set(rvsfs.map((r) => r.organizationName).filter(Boolean)).size;
+    const locations = new Set(rvsfs.map((r) => r.locationName).filter(Boolean)).size;
+    return { total, orgs, locations };
+  }, [rvsfs]);
+
+  // Pagination calculation
+  const totalEntries = rvsfs.length;
+  const totalPages = Math.ceil(totalEntries / entriesPerPage) || 1;
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const currentEntries = rvsfs.slice(startIndex, startIndex + entriesPerPage);
+
+  const startDisplay = totalEntries === 0 ? 0 : startIndex + 1;
+  const endDisplay = Math.min(startIndex + entriesPerPage, totalEntries);
+
+  // Form Handlers
+  const handleOpenAddModal = () => {
+    const defaultOrg = dynamicOrgs.length > 0 ? dynamicOrgs[0] : "";
+    setFormData({
+      organizationName: defaultOrg, name: "", contactPerson: "",
+      contactNumber: "", email: "", address: "", locationName: "", pincode: ""
+    });
+    setShowAddModal(true);
+  };
+
+  const handleOpenEditModal = () => {
+    if (!selectedRvsf) {
+      showToast("Notice", "Select an RVSF facility from the table first.");
+      return;
+    }
+    setFormData(selectedRvsf);
+    setShowEditModal(true);
+  };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim() || !formData.organizationName.trim()) {
+      showToast("Validation Error", "Organization and RVSF Name are required.");
+      return;
+    }
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -119,10 +159,11 @@ export default function RvsfPortal() {
       });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "RVSF added successfully.");
+        showToast("Success", "RVSF registered successfully.");
         setShowAddModal(false);
-        setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" });
-        fetchRvsfs();
+        fetchRvsfs(true);
+      } else {
+        showToast("Error", result.error || "Failed to add RVSF.");
       }
     } catch (err) {
       showToast("Error", "Network or server error.");
@@ -140,9 +181,11 @@ export default function RvsfPortal() {
       });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "RVSF updated successfully.");
+        showToast("Success", "RVSF details updated.");
         setShowEditModal(false);
-        fetchRvsfs();
+        fetchRvsfs(true);
+      } else {
+        showToast("Error", result.error || "Update failed.");
       }
     } catch (err) {
       showToast("Error", "Update failed.");
@@ -150,257 +193,484 @@ export default function RvsfPortal() {
   };
 
   const handleDelete = async () => {
-    if (!selectedRvsf?._id) return;
-    if (!confirm("Are you sure you want to delete this RVSF?")) return;
+    if (!selectedRvsf?._id) {
+      showToast("Notice", "Select an RVSF facility from the table first.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete '${selectedRvsf.name}'?`)) return;
     try {
       const res = await fetch(`${API_URL}/${selectedRvsf._id}`, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
-        showToast("Success", "RVSF deleted successfully.");
-        setSelectedRvsf(null);
-        fetchRvsfs();
+        showToast("Success", "RVSF facility deleted.");
+        setSelectedId(null);
+        setShowDrawer(false);
+        fetchRvsfs(true);
+      } else {
+        showToast("Error", result.error || "Delete failed.");
       }
     } catch (err) {
       showToast("Error", "Delete failed.");
     }
   };
 
-  const openEdit = (rvsf: Rvsf) => {
-    setSelectedRvsf(rvsf);
-    setFormData(rvsf);
-    setShowEditModal(true);
-  };
-
   return (
-    <div className="employee-portal" onClick={() => setShowMegaMenu(false)}>
-      {showMegaMenu && (
-        <div className="mega-menu-overlay" onClick={(e) => e.stopPropagation()}>
-          <div className="mega-menu-header">
-            <span>Mega Menu</span>
-            <button className="close-btn" onClick={() => setShowMegaMenu(false)}>×</button>
-          </div>
-          <div className="mega-menu-grid">
-            {menuSections.map((section, idx) => (
-              <div key={idx} className="menu-column">
-                <div className="column-title">{section.title}</div>
-                <div className="column-items">
-                  {section.items.map((item, i) => (
-                    <Link 
-                      key={i} 
-                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : item.includes("RVSFs") ? "/rvsf" : "#"} 
-                      className="menu-sub-item"
-                      onClick={() => setShowMegaMenu(false)}
-                    >
-                      {item.includes("(In Progress)") ? (
-                        <>
-                          <span>{item.replace("(In Progress)", "")}</span>
-                          <span className="in-progress">In Progress</span>
-                        </>
-                      ) : (
-                        item
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="employee-portal">
+      {/* Centralized Primary Navbar */}
+      <PrimaryNavbar />
 
-      {toast.show && (
-        <div className="toast show" style={{ display: 'block' }}>
-          <strong>{toast.title}</strong>
-          <div>{toast.msg}</div>
-        </div>
-      )}
-
-      {/* Slim Navbar */}
-      <nav className="slim-navbar">
-        <div className="nav-container">
-          <div className="nav-logo">
-            <img src="/nts.png" alt="NTS Logo" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              const parent = (e.target as HTMLImageElement).parentElement;
-              if (parent) parent.innerHTML = '<div class="logo-placeholder">NTS</div>';
-            }} />
-          </div>
-          <div className="nav-title">ScrapCentre Pro</div>
-          <div className="nav-links">
-            <Link href="/" style={{ textDecoration: 'none' }}><span className="nav-item">Dashboard</span></Link>
-            <span className="nav-item">Reports</span>
-            <span className="nav-item">Settings</span>
-          </div>
-          <div className="nav-profile">
-            <div className="profile-mini-avatar">AD</div>
-            <div className="profile-info-group">
-              <span className="profile-name">Admin User</span>
-              <button className="logout-button" onClick={() => {
-                document.cookie = "auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                window.location.href = '/login';
-              }}>Logout</button>
-            </div>
-          </div>
-          <div className="mega-menu-trigger" onClick={(e) => { e.stopPropagation(); setShowMegaMenu(true); }}>
-            ☰
-          </div>
-        </div>
-      </nav>
-
-      <div className="action-bar">
-        <div className="nav-container">
-          <div className="navigation-group">
-            <button className="nav-action-btn" onClick={() => window.history.back()} title="Back">‹</button>
-            <button className="nav-action-btn" onClick={() => window.history.forward()} title="Forward">›</button>
-            <button className="nav-action-btn" onClick={() => window.location.href = '/'} title="Home">⌂</button>
-          </div>
-          <div className="breadcrumb">
-            <Link href="/" className="breadcrumb-item">Home</Link>
-            <span className="separator">›</span>
-            <Link href="/rvsf" className="breadcrumb-item active current">Manage RVSFs</Link>
-          </div>
-        </div>
-      </div>
+      {/* Shared SubNavbar */}
+      <SubNavbar activeTab="Manage Account" currentPage="Manage RVSFs" />
 
       <div className="container">
+        {/* Hero Card */}
         <section className="hero card">
           <div>
-            <div className="pill">🏭 RVSF Management</div>
-            <h1>RVSF Info</h1>
-            <p className="sub">Add, manage, and track Registered Vehicle Scrapping Facilities (RVSF) across organizations.</p>
+            <h1>ScrapCentre RVSF Portal</h1>
+            <div className="sub">
+              Manage and track Registered Vehicle Scrapping Facilities (RVSF) across network organizations.
+            </div>
           </div>
           <div className="actions">
-            <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" }); }}>
-              <span style={{ fontSize: '20px' }}>+</span> Add RVSF
+            <button className="btn btn-primary" onClick={handleOpenAddModal}>
+              ＋ Add RVSF
             </button>
           </div>
         </section>
 
-        <div className="panel card" style={{ padding: '0px' }}>
-          <div className="panel-header" style={{ padding: '24px' }}>
-            <div>
-              <h2 className="title">RVSF Master List</h2>
-              <p className="desc">Listing of all registered scrapping facilities in the network.</p>
+        {/* Stats Grid */}
+        <section className="stats">
+          <div className="card stat">
+            <div className="label">Total RVSFs</div>
+            <div className="value">{stats.total}</div>
+            <div className="sub-label">Registered scrapping facilities</div>
+          </div>
+          <div className="card stat">
+            <div className="label">Mapped Entities</div>
+            <div className="value">{stats.orgs}</div>
+            <div className="sub-label">Corporate organizations</div>
+          </div>
+          <div className="card stat">
+            <div className="label">Facility Locations</div>
+            <div className="value">{stats.locations}</div>
+            <div className="sub-label">Active facility hubs</div>
+          </div>
+        </section>
+
+        {/* Grid Section */}
+        <section ref={panelRef} className={`grid ${selectedId ? "has-sidebar" : ""}`}>
+          {/* Profile Sidebar Drawer for Selected Item */}
+          <aside className={`profile-sidebar ${showDrawer ? "open" : ""}`}>
+            <button
+              className="drawer-close-btn"
+              onClick={() => {
+                setShowDrawer(false);
+                setSelectedId(null);
+              }}
+            >
+              ✕ Close
+            </button>
+
+            {!selectedRvsf ? (
+              <div className="empty-profile">
+                <div className="empty-avatar"></div>
+                <h3>No RVSF selected</h3>
+                <p>Select an RVSF facility row from the table to view details.</p>
+              </div>
+            ) : (
+              <div className="profile-content">
+                <div className="profile-header">
+                  <div className="profile-avatar">
+                    {selectedRvsf.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <h2 className="title">{selectedRvsf.name}</h2>
+                  <div className="desc">{selectedRvsf.organizationName}</div>
+                  <div className="profile-tags">
+                    <span className="badge active">Registered RVSF</span>
+                    <span className="badge tag">Location: {selectedRvsf.locationName || "N/A"}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", margin: "16px 0 20px" }}>
+                  <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleOpenEditModal}>
+                    ✎ Edit Details
+                  </button>
+                  <button className="btn btn-danger" style={{ flex: 1 }} onClick={handleDelete}>
+                    🗑 Delete
+                  </button>
+                </div>
+
+                <div className="profile-sections">
+                  <div className="profile-section">
+                    <h4>Contact Person</h4>
+                    <div className="info-row">
+                      <span>Name</span>
+                      <div style={{ fontWeight: "700" }}>{selectedRvsf.contactPerson || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Contact Number</span>
+                      <div>{selectedRvsf.contactNumber || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Email ID</span>
+                      <div style={{ wordBreak: "break-all" }}>{selectedRvsf.email || "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="profile-section">
+                    <h4>Facility Address</h4>
+                    <div className="info-row">
+                      <span>Address</span>
+                      <div>{selectedRvsf.address || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Location</span>
+                      <div>{selectedRvsf.locationName || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Pincode</span>
+                      <div>{selectedRvsf.pincode || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Main Table Panel */}
+          <div className={`card panel ${isFullscreen ? "fullscreen-table" : ""}`}>
+            <div className="panel-header">
+              <div>
+                <h2 className="title">RVSF Master Records</h2>
+                <div className="desc">Select a row to edit, delete, or inspect facility details.</div>
+              </div>
             </div>
+
+            {/* Toolbar */}
             <div className="toolbar">
               <div className="search-wrap">
                 <span className="icon">🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Search RVSF, contact or location..." 
+                <input
+                  type="text"
+                  placeholder="Search RVSF, contact or location..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
-              <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ organizationName: "", name: "", contactPerson: "", contactNumber: "", email: "", address: "", locationName: "", pincode: "" }); }}>+ Add RHSV</button>
-              <button className="btn btn-outline" disabled={!selectedRvsf} onClick={() => selectedRvsf && openEdit(selectedRvsf)}>✎ Edit</button>
-              <button className="btn btn-danger" disabled={!selectedRvsf} onClick={handleDelete}>🗑 Delete</button>
-            </div>
-          </div>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>S No.</th>
-                  <th>Organization name</th>
-                  <th>Rvsf name</th>
-                  <th>Contact person</th>
-                  <th>Contact nbr</th>
-                  <th>Email</th>
-                  <th>Address</th>
-                  <th>Location name</th>
-                  <th>Pincode</th>
-                  <th>Created by</th>
-                  <th>Created on</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>Loading RVSF data...</td></tr>
-                ) : rvsfs.length === 0 ? (
-                  <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>No RVSF records found.</td></tr>
-                ) : rvsfs.map((rvsf, index) => (
-                  <tr 
-                    key={rvsf._id} 
-                    onClick={() => setSelectedRvsf(rvsf)}
-                    className={selectedRvsf?._id === rvsf._id ? "selected" : ""}
-                  >
-                    <td>{index + 1}</td>
-                    <td style={{ fontWeight: '500' }}>{rvsf.organizationName}</td>
-                    <td style={{ fontWeight: '700' }}>{rvsf.name}</td>
-                    <td>{rvsf.contactPerson || "—"}</td>
-                    <td>{rvsf.contactNumber || "—"}</td>
-                    <td>{rvsf.email || "—"}</td>
-                    <td><div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rvsf.address || "—"}</div></td>
-                    <td>{rvsf.locationName || "—"}</td>
-                    <td>{rvsf.pincode || "—"}</td>
-                    <td><span className="badge tag">{rvsf.createdBy || "Admin"}</span></td>
-                    <td style={{ fontSize: '11px' }}>{rvsf.createdAt ? new Date(rvsf.createdAt).toLocaleString('en-IN') : "—"}</td>
+              <div className="entries-select-wrap">
+                <label htmlFor="rvsf-entries-select">Show</label>
+                <select
+                  id="rvsf-entries-select"
+                  value={entriesPerPage}
+                  onChange={(e) => {
+                    setEntriesPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span>records per page</span>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-primary" onClick={handleOpenAddModal}>
+                  ＋ Add
+                </button>
+                <button
+                  className="btn btn-outline"
+                  onClick={handleOpenEditModal}
+                  disabled={!selectedRvsf}
+                >
+                  ✎ Edit
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDelete}
+                  disabled={!selectedRvsf}
+                >
+                  🗑 Delete
+                </button>
+                <button
+                  className={`btn btn-outline ${isRefreshing ? "loading" : ""}`}
+                  onClick={() => fetchRvsfs(false)}
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? "⏳ Refreshing..." : "↻ Refresh"}
+                </button>
+              </div>
+
+              <button
+                className="btn btn-outline"
+                style={{ marginLeft: "auto", fontWeight: "900", fontSize: "18px" }}
+                title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+                onClick={async () => {
+                  if (!document.fullscreenElement) {
+                    await panelRef.current?.requestFullscreen();
+                  } else {
+                    await document.exitFullscreen();
+                  }
+                }}
+              >
+                {isFullscreen ? "↙" : "⛶"}
+              </button>
+            </div>
+
+            {/* Table Wrap */}
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: "40px" }}></th>
+                    <th style={{ width: "70px" }}>S No.</th>
+                    <th>Organization Name</th>
+                    <th>RVSF Name</th>
+                    <th>Contact Person</th>
+                    <th>Contact Nbr</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Location Name</th>
+                    <th>Pincode</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: "center", padding: "40px" }}>
+                        Loading RVSF records...
+                      </td>
+                    </tr>
+                  ) : currentEntries.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: "center", padding: "40px" }}>
+                        No RVSF facility records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    currentEntries.map((rvsf, index) => {
+                      const id = rvsf._id as string;
+                      const sNo = startIndex + index + 1;
+                      const isSelected = selectedId === id;
+                      return (
+                        <tr
+                          key={id}
+                          className={isSelected ? "selected" : ""}
+                          onClick={() => {
+                            if (selectedId === id) {
+                              setSelectedId(null);
+                              setShowDrawer(false);
+                            } else {
+                              setSelectedId(id);
+                              setShowDrawer(true);
+                            }
+                          }}
+                        >
+                          <td>
+                            <span className="radio"></span>
+                          </td>
+                          <td>{sNo}</td>
+                          <td style={{ fontWeight: "500" }}>{rvsf.organizationName}</td>
+                          <td style={{ fontWeight: "700" }}>{rvsf.name}</td>
+                          <td>{rvsf.contactPerson || "—"}</td>
+                          <td>{rvsf.contactNumber || "—"}</td>
+                          <td>{rvsf.email || "—"}</td>
+                          <td>
+                            <div style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {rvsf.address || "—"}
+                            </div>
+                          </td>
+                          <td>{rvsf.locationName || "—"}</td>
+                          <td>{rvsf.pincode || "—"}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Wrap */}
+            <div className="pagination-wrap">
+              <div style={{ fontSize: 13, color: "#64748b" }}>
+                Showing {startDisplay} to {endDisplay} of {totalEntries} entries
+              </div>
+
+              <div className="pagination-buttons">
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    className={`page-btn ${currentPage === pageNum ? "active" : ""}`}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            {/* Toast Notification */}
+            {toast.show && (
+              <div className="toast show">
+                <strong>{toast.title}</strong>
+                <div>{toast.msg}</div>
+              </div>
+            )}
           </div>
-          <div className="footer-note" style={{ padding: '16px 24px' }}>
-            <div>Total {rvsfs.length} facility records</div>
-            <div>{selectedRvsf ? `Selected: ${selectedRvsf.name}` : "Click a row to manage facility details"}</div>
-          </div>
-        </div>
+        </section>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal - Root Viewport Centered with Pure Background Blur */}
       {(showAddModal || showEditModal) && (
-        <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) { setShowAddModal(false); setShowEditModal(false); } }}>
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddModal(false);
+              setShowEditModal(false);
+            }
+          }}
+        >
           <div className="modal">
             <div className="modal-header">
               <div>
-                <h3 className="modal-title">{showAddModal ? "Register New RVSF" : "Edit RVSF Details"}</h3>
-                <p className="modal-sub">Ensure all facility contact information is accurate for portal access.</p>
+                <div className="modal-title">
+                  {showAddModal ? "Register New RVSF" : "Edit RVSF Facility"}
+                </div>
+                <div className="modal-sub">
+                  {showAddModal
+                    ? "Fill in scrapping facility registration details below."
+                    : "Modify RVSF facility information in database."}
+                </div>
               </div>
-              <button className="close" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>×</button>
+              <button
+                className="close"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setShowEditModal(false);
+                }}
+              >
+                ×
+              </button>
             </div>
             <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit}>
               <div className="form-grid">
                 <div className="field">
-                  <label>Organization name <span className="req">*</span></label>
-                  <select required value={formData.organizationName} onChange={(e) => setFormData({...formData, organizationName: e.target.value})}>
-                    <option value="">Select Organization</option>
-                    {dynamicOrgs.map(org => <option key={org} value={org}>{org}</option>)}
+                  <label>
+                    Organization Name <span className="req">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.organizationName}
+                    onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
+                  >
+                    {dynamicOrgs.length > 0 ? (
+                      dynamicOrgs.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">No organizations available</option>
+                    )}
                   </select>
                 </div>
                 <div className="field">
-                  <label>Rvsf name <span className="req">*</span></label>
-                  <input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. SCRAP CENTRE" />
+                  <label>
+                    RVSF Facility Name <span className="req">*</span>
+                  </label>
+                  <input
+                    required
+                    placeholder="e.g. Kanpur RVSF Facility 1"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Contact person</label>
-                  <input value={formData.contactPerson} onChange={(e) => setFormData({...formData, contactPerson: e.target.value})} placeholder="Full Name" />
+                  <label>Contact Person</label>
+                  <input
+                    placeholder="e.g. Shubham Shukla"
+                    value={formData.contactPerson}
+                    onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Contact number</label>
-                  <input value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value})} placeholder="Mobile Number" />
+                  <label>Contact Number</label>
+                  <input
+                    placeholder="e.g. 9876543210"
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Email ID</label>
-                  <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} placeholder="facility@email.com" />
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. rvsf.kanpur@rampup.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Location name</label>
-                  <input value={formData.locationName} onChange={(e) => setFormData({...formData, locationName: e.target.value})} placeholder="e.g. Dibiyapur" />
+                  <label>Facility Address</label>
+                  <input
+                    placeholder="e.g. Plot 45, Industrial Scrapping Zone"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Location Name</label>
+                  <input
+                    placeholder="e.g. Kanpur North"
+                    value={formData.locationName}
+                    onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
+                  />
                 </div>
                 <div className="field">
                   <label>Pincode</label>
-                  <input value={formData.pincode} onChange={(e) => setFormData({...formData, pincode: e.target.value})} placeholder="6-digit PIN" />
-                </div>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label>Full Address</label>
-                  <input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} placeholder="Street, Industrial Area, Building..." />
+                  <input
+                    placeholder="e.g. 208001"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{showAddModal ? "Register Facility" : "Save RVSF Changes"}</button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShowEditModal(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {showAddModal ? "Register RVSF" : "Save Changes"}
+                </button>
               </div>
             </form>
           </div>

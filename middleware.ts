@@ -39,5 +39,7 @@ export const config = {
     '/employee/:path*',
     '/organization/:path*',
     '/rvsf/:path*',
+    '/designation/:path*',
+    '/elv-leads/:path*',
   ],
 }

@@ -47,21 +47,28 @@ const LoginPage = () => {
 
   return (
     <div className="login-page">
+      <div id="stars"></div>
+      <div id="stars2"></div>
+      <div id="stars3"></div>
+      
       <div className="login-bg-shape shape-1"></div>
       <div className="login-bg-shape shape-2"></div>
 
       <div className="login-card">
-        <div className="login-header">
-          <Image 
-            src="/nts.png" 
-            alt="ScrapCentre Logo" 
-            width={120} 
-            height={48} 
-            className="login-logo"
-            priority
-          />
-          <h1 className="login-title">Welcome Back</h1>
-          <p className="login-subtitle">Access your ScrapCentre Pro account</p>
+        <div className="login-header animate-slide-up">
+          <div className="login-logo-container">
+            <Image 
+              src="/nts.png" 
+              alt="ScrapCentre Logo" 
+              width={100} 
+              height={40} 
+              className="login-logo"
+              priority
+            />
+          </div>
+          <p className="login-subtitle">
+            Secure login for <span className="highlight">ScrapCentre Pro</span>
+          </p>
         </div>
 
         {error && (
@@ -74,7 +81,7 @@ const LoginPage = () => {
         )}
 
         <form className="login-form" onSubmit={handleLogin}>
-          <div className="form-group">
+          <div className="form-group animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <label className="form-label">Username</label>
             <div className="input-wrapper">
               <div className="input-icon">
@@ -93,7 +100,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <div className="form-group">
+          <div className="form-group animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <label className="form-label">Password</label>
             <div className="input-wrapper">
               <div className="input-icon">
@@ -113,36 +120,24 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <div className="form-extras">
-            <label className="remember-me">
-              <input type="checkbox" />
-              Remember me
-            </label>
-            <Link href="/forgot-password" title="Forgot password" className="forgot-password">
-              Forgot password?
-            </Link>
-          </div>
-
           <button 
             type="submit" 
-            className="login-button" 
+            className="login-button animate-slide-up" 
+            style={{ animationDelay: '0.3s' }}
             disabled={isLoading}
           >
             {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
+              <div className="button-loader">
                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing in...
-              </span>
-            ) : "Sign In"}
+                <span>Initializing...</span>
+              </div>
+            ) : "Initiate Access"}
           </button>
         </form>
 
-        <div className="login-footer">
-          Don't have an account? <Link href="/signup" title="Create account" className="signup-link">Create Account</Link>
-        </div>
       </div>
     </div>
   );

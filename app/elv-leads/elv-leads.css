@@ -1,0 +1,184 @@
+@import "../employee/employee.css";
+
+/* ELV Lead Specific Custom Overrides */
+.employee-portal .hero h1 {
+  font-size: 20px;
+}
+
+.employee-portal .hero .sub {
+  font-size: 12.5px;
+}
+
+.employee-portal .title {
+  font-size: 15px;
+}
+
+.employee-portal .desc {
+  font-size: 11.5px;
+}
+
+/* Compact Table Layout to Fit 14-inch Laptop Screens Without Slider */
+.employee-portal .table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.employee-portal table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.employee-portal thead th {
+  font-size: 9px;
+  padding: 6px 4px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.employee-portal tbody td {
+  font-size: 9.5px;
+  padding: 6px 4px;
+  white-space: nowrap;
+}
+
+.employee-portal .col-supplier {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-portal .col-details {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-portal .col-date {
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.employee-portal .modal-title {
+  font-size: 16px;
+}
+
+.employee-portal .form-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-top: 8px;
+  grid-column: 1 / -1;
+}
+
+.employee-portal .form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.employee-portal .form-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.employee-portal .purchase-section-wrap {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  grid-column: 1 / -1;
+}
+
+.employee-portal .purchase-fields-col {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.employee-portal .summary-amount-box {
+  width: 190px;
+  border: 2px solid #2563eb;
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  background: #f8fafc;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.employee-portal .summary-amount-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.employee-portal .summary-amount-val {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.employee-portal .action-btn-sm {
+  padding: 3px 8px;
+  font-size: 10.5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* 14-inch Laptop Media Query Adjustments */
+@media (max-width: 1440px) {
+  .employee-portal .container {
+    max-width: 100%;
+    padding: 14px 10px;
+  }
+  .employee-portal .panel {
+    padding: 14px;
+  }
+  .employee-portal thead th {
+    font-size: 8px;
+    padding: 5px 3px;
+  }
+  .employee-portal tbody td {
+    font-size: 8.5px;
+    padding: 5px 3px;
+  }
+  .employee-portal .col-supplier {
+    max-width: 90px;
+  }
+  .employee-portal .col-details {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .employee-portal .form-grid-3, 
+  .employee-portal .form-grid-4,
+  .employee-portal .purchase-fields-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .employee-portal .purchase-section-wrap {
+    flex-direction: column;
+  }
+  .employee-portal .summary-amount-box {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .employee-portal .form-grid-3, 
+  .employee-portal .form-grid-4,
+  .employee-portal .purchase-fields-col {
+    grid-template-columns: 1fr;
+  }
+}

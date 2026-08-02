@@ -1,0 +1,269 @@
+@import "../employee/employee.css";
+
+/* Designation portal specific tweaks for full alignment with Employee & Organization Portals */
+.designation-portal {
+  min-height: 100vh;
+  background-color: var(--bg, #f8fafc);
+}
+
+.designation-portal .badge.code-tag {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+/* Beautiful Records per Page Selector Styling */
+.designation-portal .entries-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 4px 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.designation-portal .entries-select-wrap:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.designation-portal .entries-select-wrap label,
+.designation-portal .entries-select-wrap span {
+  font-size: 13.5px;
+  color: #475569;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.designation-portal .entries-select-wrap select {
+  height: 32px;
+  padding: 0 26px 0 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 12px;
+  transition: all 0.2s ease;
+  min-width: unset !important;
+  width: auto !important;
+}
+
+.designation-portal .entries-select-wrap select:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.designation-portal .pagination-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.designation-portal .pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.designation-portal .page-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.designation-portal .page-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #0f172a;
+}
+
+.designation-portal .page-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.designation-portal .page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal Overlay: Pure Blur ONLY (No color change, no dark/blue background tint) */
+.designation-portal .modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  z-index: 99999 !important;
+  animation: designationModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.designation-portal .modal {
+  z-index: 100000 !important;
+  position: relative !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2), 0 0 1px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  animation: designationModalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes designationModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes designationModalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 14-Inch Laptop Optimization (1366px - 1536px viewports and display scaling) */
+@media (max-width: 1536px) {
+  .designation-portal .container {
+    max-width: 100%;
+    padding: 16px 20px 32px;
+  }
+
+  .designation-portal .hero.card {
+    padding: 32px 28px;
+    margin-bottom: 20px;
+  }
+
+  .designation-portal .hero h1 {
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+
+  .designation-portal .hero .sub {
+    font-size: 14.5px;
+  }
+
+  .designation-portal .stats {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .designation-portal .stat {
+    padding: 18px 20px;
+  }
+
+  .designation-portal .stat .value {
+    font-size: 32px;
+  }
+
+  .designation-portal .grid.has-sidebar {
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+  }
+
+  .designation-portal .profile-sidebar.open {
+    max-width: 320px;
+    padding: 24px 16px;
+  }
+
+  .designation-portal .panel {
+    padding: 20px;
+  }
+
+  .designation-portal .toolbar {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .designation-portal .search-wrap {
+    min-width: 220px;
+  }
+
+  .designation-portal table thead th {
+    padding: 10px 14px;
+    font-size: 11.5px;
+  }
+
+  .designation-portal table tbody td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .designation-portal .grid.has-sidebar {
+    grid-template-columns: 300px 1fr;
+    gap: 14px;
+  }
+
+  .designation-portal .profile-sidebar.open {
+    max-width: 300px;
+    padding: 20px 14px;
+  }
+
+  .designation-portal .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .designation-portal .search-wrap {
+    flex: 1 1 200px;
+    min-width: 180px;
+  }
+}
+
+/* Vertical Height Optimization for 14-inch Laptop Screens (700px - 850px height) */
+@media (max-height: 850px) {
+  .designation-portal .modal {
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+  }
+
+  .designation-portal .profile-sidebar {
+    height: calc(100vh - 120px);
+  }
+}

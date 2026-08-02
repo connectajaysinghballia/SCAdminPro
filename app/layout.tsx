@@ -27,7 +27,30 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        
+        <footer className="common-footer">
+          <div className="footer-content">
+            <div className="footer-item">
+              <span className="icon">✉️</span>
+              <a href="mailto:service.desk@novalytixtechservices.com">service.desk@novalytixtechservices.com</a>
+            </div>
+            <div className="footer-item">
+              <span className="icon">📞</span>
+              <a href="tel:+919005333587">+91 90053 33587</a>
+            </div>
+            <div className="footer-item">
+              <span className="icon">📞</span>
+              <a href="tel:+919415480154">+91 94154 80154</a>
+            </div>
+            <div className="footer-separator">|</div>
+            <div className="footer-copyright">
+              © 2026 - Powered by NOVALYTIX TECHNOLOGY SERVICES. ALL RIGHTS RESERVED
+            </div>
+          </div>
+        </footer>
+      </body>
     </html>
   );
 }

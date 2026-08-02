@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import SubNavbar from "../../components/SubNavbar";
+import PrimaryNavbar from "../../components/PrimaryNavbar";
 import "../employee/employee.css";
 
 interface Organization {
@@ -15,6 +17,8 @@ interface Organization {
   state: string;
   city: string;
   pincode: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const API_URL = "/api/organizations";
@@ -22,42 +26,18 @@ const API_URL = "/api/organizations";
 export default function OrganizationPortal() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showMegaMenu, setShowMegaMenu] = useState(false);
 
-  const menuSections = [
-    {
-      title: "Manage Account",
-      items: ["Manage Employees", "Manage Organization", "Manage Roles", "Manage RVSFs", "User Designations"]
-    },
-    {
-      title: "Purchases",
-      items: ["Manage ELV Leads", "Manage Approvals", "Manage Auctions", "Manage ELV Leads", "Manage Lead Logistics", "Manage Suppliers", "Manage Vehicle Purchases", "Purchase Payments Management (In Progress)", "Vehicle Owners Directory"]
-    },
-    {
-      title: "Shop Floor",
-      items: ["Certificates (In Progress)", "Manage Item Loss Reasons", "Manage Job Wise works", "Manage Workstations", "Scrapping History", "Scrapping Queue", "Scrapping Requests"]
-    },
-    {
-      title: "Stores",
-      items: ["Existing Stock", "Inventory Management", "Refurbishment", "Scrap & Bale Inventory", "Stock-in History (In Progress)", "Store Management"]
-    },
-    {
-      title: "Sales",
-      items: ["Manage Business Customer", "Counter Sales", "Manage Business Customer", "Manage Customers", "Sales History"]
-    },
-    {
-      title: "Reports",
-      items: ["Performance Dashboard", "Business Dashboard (In Progress)", "Dismantling Operations (In Progress)", "ELV Purchase Reports", "ELV Status Tracking", "Email Audits", "Performance Dashboard", "Scrap/ Part Sales (In Progress)", "Scrapping Reports (In Progress)", "View Logs"]
-    },
-    {
-      title: "Master Data",
-      items: ["Manage Lead Rejection Reasons", "Dynamic Storage Options", "Dynamic Storage Options", "Manage Fuel Type", "Manage Item Categories", "Manage Item Groups", "Manage Item Stocking Location", "Manage Lead Rejection", "Manage Lead Source", "Manage RTOs", "Manage Spares & Scrap Items", "Manage Vehicle Class", "Manage Vehicle Color"]
-    }
-  ];
   const [toast, setToast] = useState({ show: false, title: "", msg: "" });
 
   const [formData, setFormData] = useState<Organization>({
@@ -74,29 +54,92 @@ export default function OrganizationPortal() {
 
   const showToast = (title: string, msg: string) => {
     setToast({ show: true, title, msg });
-    setTimeout(() => setToast({ show: false, title: "", msg: "" }), 3000);
+    setTimeout(() => setToast({ show: false, title: "", msg: "" }), 2800);
   };
 
-  const fetchOrganizations = async () => {
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const fetchOrganizations = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_URL}?search=${search}`);
+      setLoading(true);
+      const res = await fetch(`${API_URL}?search=${encodeURIComponent(search)}`);
       const data = await res.json();
       if (data.success) {
         setOrganizations(data.data);
+        if (!silent) showToast("Refreshed", "Organization records loaded.");
+      } else {
+        showToast("Error", data.error || "Failed to fetch organizations.");
       }
     } catch (err) {
-      showToast("Error", "Failed to fetch data.");
+      showToast("Error", "Network or server error.");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchOrganizations();
+    fetchOrganizations(true);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchOrganizations(true), 300);
+    return () => clearTimeout(t);
   }, [search]);
+
+  // Selected Organization Item
+  const selectedOrg = useMemo(() => {
+    return organizations.find((o) => o._id === selectedId) || null;
+  }, [organizations, selectedId]);
+
+  // Statistics calculation
+  const stats = useMemo(() => {
+    const total = organizations.length;
+    const withGst = organizations.filter((o) => o.gst && o.gst.trim() !== "").length;
+    const locations = new Set(
+      organizations.map((o) => (o.city || o.location || "").trim()).filter(Boolean)
+    ).size;
+    return { total, withGst, locations };
+  }, [organizations]);
+
+  // Pagination calculations
+  const totalEntries = organizations.length;
+  const totalPages = Math.ceil(totalEntries / entriesPerPage) || 1;
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const currentEntries = organizations.slice(startIndex, startIndex + entriesPerPage);
+
+  const startDisplay = totalEntries === 0 ? 0 : startIndex + 1;
+  const endDisplay = Math.min(startIndex + entriesPerPage, totalEntries);
+
+  // Form Handlers
+  const handleOpenAddModal = () => {
+    setFormData({
+      name: "", gst: "", contactNumber: "", contactPerson: "",
+      email: "", location: "", state: "", city: "", pincode: ""
+    });
+    setShowAddModal(true);
+  };
+
+  const handleOpenEditModal = () => {
+    if (!selectedOrg) {
+      showToast("Notice", "Select an organization row from the table first.");
+      return;
+    }
+    setFormData(selectedOrg);
+    setShowEditModal(true);
+  };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      showToast("Validation Error", "Organization Name is required.");
+      return;
+    }
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -107,8 +150,9 @@ export default function OrganizationPortal() {
       if (result.success) {
         showToast("Success", "Organization added successfully.");
         setShowAddModal(false);
-        setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" });
-        fetchOrganizations();
+        fetchOrganizations(true);
+      } else {
+        showToast("Error", result.error || "Failed to add organization.");
       }
     } catch (err) {
       showToast("Error", "Network or server error.");
@@ -118,6 +162,10 @@ export default function OrganizationPortal() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrg?._id) return;
+    if (!formData.name.trim()) {
+      showToast("Validation Error", "Organization Name is required.");
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/${selectedOrg._id}`, {
         method: "PATCH",
@@ -128,7 +176,9 @@ export default function OrganizationPortal() {
       if (result.success) {
         showToast("Success", "Organization updated.");
         setShowEditModal(false);
-        fetchOrganizations();
+        fetchOrganizations(true);
+      } else {
+        showToast("Error", result.error || "Update failed.");
       }
     } catch (err) {
       showToast("Error", "Update failed.");
@@ -136,252 +186,464 @@ export default function OrganizationPortal() {
   };
 
   const handleDelete = async () => {
-    if (!selectedOrg?._id) return;
-    if (!confirm("Are you sure you want to delete this organization?")) return;
+    if (!selectedOrg?._id) {
+      showToast("Notice", "Select an organization from the table first.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete '${selectedOrg.name}'?`)) return;
     try {
       const res = await fetch(`${API_URL}/${selectedOrg._id}`, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
         showToast("Success", "Organization deleted.");
-        setSelectedOrg(null);
-        fetchOrganizations();
+        setSelectedId(null);
+        setShowDrawer(false);
+        fetchOrganizations(true);
+      } else {
+        showToast("Error", result.error || "Delete failed.");
       }
     } catch (err) {
       showToast("Error", "Delete failed.");
     }
   };
 
-  const openEdit = (org: Organization) => {
-    setSelectedOrg(org);
-    setFormData(org);
-    setShowEditModal(true);
-  };
-
   return (
-    <div className="employee-portal" onClick={() => setShowMegaMenu(false)}>
-      {showMegaMenu && (
-        <div className="mega-menu-overlay" onClick={(e) => e.stopPropagation()}>
-          <div className="mega-menu-header">
-            <span>Mega Menu</span>
-            <button className="close-btn" onClick={() => setShowMegaMenu(false)}>×</button>
-          </div>
-          <div className="mega-menu-grid">
-            {menuSections.map((section, idx) => (
-              <div key={idx} className="menu-column">
-                <div className="column-title">{section.title}</div>
-                <div className="column-items">
-                  {section.items.map((item, i) => (
-                    <Link 
-                      key={i} 
-                      href={item.includes("Employees") ? "/employee" : item.includes("Organization") ? "/organization" : item.includes("RVSFs") ? "/rvsf" : "#"} 
-                      className="menu-sub-item"
-                      onClick={() => setShowMegaMenu(false)}
-                    >
-                      {item.includes("(In Progress)") ? (
-                        <>
-                          <span>{item.replace("(In Progress)", "")}</span>
-                          <span className="in-progress">In Progress</span>
-                        </>
-                      ) : (
-                        item
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {toast.show && (
-        <div className="toast">
-          <strong>{toast.title}</strong>
-          {toast.msg}
-        </div>
-      )}
+    <div className="employee-portal">
+      {/* Centralized Primary Navbar */}
+      <PrimaryNavbar />
 
-      {/* Slim Navbar */}
-      <nav className="slim-navbar">
-        <div className="nav-container">
-          <div className="nav-logo">
-            <img src="/nts.png" alt="NTS Logo" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              const parent = (e.target as HTMLImageElement).parentElement;
-              if (parent) parent.innerHTML = '<div class="logo-placeholder">NTS</div>';
-            }} />
-          </div>
-          <div className="nav-title">ScrapCentre Pro</div>
-          <div className="nav-links">
-            <Link href="/" style={{ textDecoration: 'none' }}><span className="nav-item">Dashboard</span></Link>
-            <span className="nav-item">Reports</span>
-            <span className="nav-item">Settings</span>
-          </div>
-          <div className="nav-profile">
-            <div className="profile-mini-avatar">AD</div>
-            <div className="profile-info-group">
-              <span className="profile-name">Admin User</span>
-              <button className="logout-button" onClick={() => {
-                document.cookie = "auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                window.location.href = '/login';
-              }}>Logout</button>
-            </div>
-          </div>
-          <div className="mega-menu-trigger" onClick={(e) => { e.stopPropagation(); setShowMegaMenu(true); }}>
-            ☰
-          </div>
-        </div>
-      </nav>
-
-      <div className="action-bar">
-        <div className="nav-container">
-          <div className="navigation-group">
-            <button className="nav-action-btn" onClick={() => window.history.back()} title="Back">‹</button>
-            <button className="nav-action-btn" onClick={() => window.history.forward()} title="Forward">›</button>
-            <button className="nav-action-btn" onClick={() => window.location.href = '/'} title="Home">⌂</button>
-          </div>
-          <div className="breadcrumb">
-            <Link href="/" className="breadcrumb-item">Home</Link>
-            <span className="separator">›</span>
-            <Link href="/organization" className="breadcrumb-item active current">Manage Organization</Link>
-          </div>
-        </div>
-      </div>
+      {/* Shared SubNavbar */}
+      <SubNavbar activeTab="Manage Account" currentPage="Manage Organization" />
 
       <div className="container">
+        {/* Hero Card */}
         <section className="hero card">
           <div>
-            <h1>Organization Info</h1>
-            <p className="sub">Manage and track organization details, GST, and contact points below.</p>
+            <h1>ScrapCentre Organization Portal</h1>
+            <div className="sub">
+              Manage corporate entities, GST registrations, contact points, and location details across ScrapCentre.
+            </div>
           </div>
           <div className="actions">
-            <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" }); }}>
-              <span style={{ fontSize: '20px' }}>+</span> Add Organization
+            <button className="btn btn-primary" onClick={handleOpenAddModal}>
+              ＋ Add Organization
             </button>
           </div>
         </section>
 
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="title">Organization List</h2>
-              <p className="desc">Total {organizations.length} entries found</p>
+        {/* Stats Grid */}
+        <section className="stats">
+          <div className="card stat">
+            <div className="label">Total Organizations</div>
+            <div className="value">{stats.total}</div>
+            <div className="sub-label">Registered corporate entities</div>
+          </div>
+          <div className="card stat">
+            <div className="label">Active Locations</div>
+            <div className="value">{stats.locations}</div>
+            <div className="sub-label">Operating operational cities</div>
+          </div>
+          <div className="card stat">
+            <div className="label">Registered GSTs</div>
+            <div className="value">{stats.withGst}</div>
+            <div className="sub-label">Verified tax registrations</div>
+          </div>
+        </section>
+
+        {/* Main Grid with Panel and Inspection Sidebar */}
+        <section ref={panelRef} className={`grid ${selectedId ? "has-sidebar" : ""}`}>
+          {/* Profile Sidebar Drawer for Selected Item */}
+          <aside className={`profile-sidebar ${showDrawer ? "open" : ""}`}>
+            <button
+              className="drawer-close-btn"
+              onClick={() => {
+                setShowDrawer(false);
+                setSelectedId(null);
+              }}
+            >
+              ✕ Close
+            </button>
+
+            {!selectedOrg ? (
+              <div className="empty-profile">
+                <div className="empty-avatar"></div>
+                <h3>No organization selected</h3>
+                <p>Select an organization row from the table to view details.</p>
+              </div>
+            ) : (
+              <div className="profile-content">
+                <div className="profile-header">
+                  <div className="profile-avatar">
+                    {selectedOrg.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <h2 className="title">{selectedOrg.name}</h2>
+                  <div className="desc">{selectedOrg.location || selectedOrg.city || "Corporate Entity"}</div>
+                  <div className="profile-tags">
+                    <span className="badge active">Active Entity</span>
+                    <span className="badge tag">GST: {selectedOrg.gst || "N/A"}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", margin: "16px 0 20px" }}>
+                  <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleOpenEditModal}>
+                    ✎ Edit Details
+                  </button>
+                  <button className="btn btn-danger" style={{ flex: 1 }} onClick={handleDelete}>
+                    🗑 Delete
+                  </button>
+                </div>
+
+                <div className="profile-sections">
+                  <div className="profile-section">
+                    <h4>Contact Point</h4>
+                    <div className="info-row">
+                      <span>Contact Person</span>
+                      <div style={{ fontWeight: "700" }}>{selectedOrg.contactPerson || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Contact Number</span>
+                      <div>{selectedOrg.contactNumber || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Email ID</span>
+                      <div style={{ wordBreak: "break-all" }}>{selectedOrg.email || "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="profile-section">
+                    <h4>Address & Location</h4>
+                    <div className="info-row">
+                      <span>Location</span>
+                      <div>{selectedOrg.location || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>City</span>
+                      <div>{selectedOrg.city || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>State</span>
+                      <div>{selectedOrg.state || "—"}</div>
+                    </div>
+                    <div className="info-row">
+                      <span>Pincode</span>
+                      <div>{selectedOrg.pincode || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Main Table Panel */}
+          <div className={`card panel ${isFullscreen ? "fullscreen-table" : ""}`}>
+            <div className="panel-header">
+              <div>
+                <h2 className="title">Organization Master</h2>
+                <div className="desc">Select a row to edit, delete, or inspect company details.</div>
+              </div>
             </div>
+
+            {/* Toolbar Row */}
             <div className="toolbar">
               <div className="search-wrap">
                 <span className="icon">🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Search by name, person or location..." 
+                <input
+                  type="text"
+                  placeholder="Search by name, person or location..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
-              <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setFormData({ name: "", gst: "", contactNumber: "", contactPerson: "", email: "", location: "", state: "", city: "", pincode: "" }); }}>
-                ＋ Add
-              </button>
-              <button className="btn btn-outline" disabled={!selectedOrg} onClick={() => selectedOrg && openEdit(selectedOrg)}>Edit</button>
-              <button className="btn btn-danger" disabled={!selectedOrg} onClick={handleDelete}>Delete</button>
-            </div>
-          </div>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>S No.</th>
-                  <th>Name</th>
-                  <th>Gst</th>
-                  <th>Contact nbr</th>
-                  <th>Cntct person name</th>
-                  <th>Email id</th>
-                  <th>Location name</th>
-                  <th>State</th>
-                  <th>City</th>
-                  <th>Pincode</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
-                ) : organizations.length === 0 ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>No entries found</td></tr>
-                ) : organizations.map((org, index) => (
-                  <tr 
-                    key={org._id} 
-                    onClick={() => setSelectedOrg(org)}
-                    className={selectedOrg?._id === org._id ? "selected" : ""}
-                  >
-                    <td>{index + 1}</td>
-                    <td style={{ fontWeight: '700' }}>{org.name}</td>
-                    <td>{org.gst || "—"}</td>
-                    <td>{org.contactNumber || "—"}</td>
-                    <td>{org.contactPerson || "—"}</td>
-                    <td>{org.email || "—"}</td>
-                    <td>{org.location || "—"}</td>
-                    <td>{org.state || "—"}</td>
-                    <td>{org.city || "—"}</td>
-                    <td>{org.pincode || "—"}</td>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-primary" onClick={handleOpenAddModal}>
+                  ＋ Add
+                </button>
+                <button
+                  className="btn btn-outline"
+                  onClick={handleOpenEditModal}
+                  disabled={!selectedOrg}
+                >
+                  ✎ Edit
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDelete}
+                  disabled={!selectedOrg}
+                >
+                  🗑 Delete
+                </button>
+                <button
+                  className={`btn btn-outline ${isRefreshing ? "loading" : ""}`}
+                  onClick={() => fetchOrganizations(false)}
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? "⏳ Refreshing..." : "↻ Refresh"}
+                </button>
+              </div>
+
+              <button
+                className="btn btn-outline"
+                style={{ marginLeft: "auto", fontWeight: "900", fontSize: "18px" }}
+                title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+                onClick={async () => {
+                  if (!document.fullscreenElement) {
+                    await panelRef.current?.requestFullscreen();
+                  } else {
+                    await document.exitFullscreen();
+                  }
+                }}
+              >
+                {isFullscreen ? "↙" : "⛶"}
+              </button>
+            </div>
+
+            {/* Table Wrap */}
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: "40px" }}></th>
+                    <th style={{ width: "70px" }}>S No.</th>
+                    <th>Name</th>
+                    <th>GST</th>
+                    <th>Contact Nbr</th>
+                    <th>Cntct Person Name</th>
+                    <th>Email ID</th>
+                    <th>Location Name</th>
+                    <th>State</th>
+                    <th>City</th>
+                    <th>Pincode</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={11} style={{ textAlign: "center", padding: "40px" }}>
+                        Loading organizations...
+                      </td>
+                    </tr>
+                  ) : currentEntries.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} style={{ textAlign: "center", padding: "40px" }}>
+                        No organization entries found.
+                      </td>
+                    </tr>
+                  ) : (
+                    currentEntries.map((org, index) => {
+                      const id = org._id as string;
+                      const sNo = startIndex + index + 1;
+                      const isSelected = selectedId === id;
+                      return (
+                        <tr
+                          key={id}
+                          className={isSelected ? "selected" : ""}
+                          onClick={() => {
+                            if (selectedId === id) {
+                              setSelectedId(null);
+                              setShowDrawer(false);
+                            } else {
+                              setSelectedId(id);
+                              setShowDrawer(true);
+                            }
+                          }}
+                        >
+                          <td>
+                            <span className="radio"></span>
+                          </td>
+                          <td>{sNo}</td>
+                          <td style={{ fontWeight: "700" }}>{org.name}</td>
+                          <td>{org.gst || "—"}</td>
+                          <td>{org.contactNumber || "—"}</td>
+                          <td>{org.contactPerson || "—"}</td>
+                          <td>{org.email || "—"}</td>
+                          <td>{org.location || "—"}</td>
+                          <td>{org.state || "—"}</td>
+                          <td>{org.city || "—"}</td>
+                          <td>{org.pincode || "—"}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Wrap */}
+            <div className="pagination-wrap">
+              <div style={{ fontSize: 13, color: "#64748b" }}>
+                Showing {startDisplay} to {endDisplay} of {totalEntries} entries
+              </div>
+
+              <div className="pagination-buttons">
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    className={`page-btn ${currentPage === pageNum ? "active" : ""}`}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            {/* Toast Notification */}
+            {toast.show && (
+              <div className="toast show">
+                <strong>{toast.title}</strong>
+                <div>{toast.msg}</div>
+              </div>
+            )}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal - Root Viewport Centered with Pure Background Blur */}
       {(showAddModal || showEditModal) && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddModal(false);
+              setShowEditModal(false);
+            }
+          }}
+        >
           <div className="modal">
             <div className="modal-header">
               <div>
-                <h3 className="modal-title">{showAddModal ? "Add New Organization" : "Edit Organization"}</h3>
-                <p className="modal-sub">{showAddModal ? "Enter company and contact details below." : "Modify organization information."}</p>
+                <div className="modal-title">
+                  {showAddModal ? "Add New Organization" : "Edit Organization"}
+                </div>
+                <div className="modal-sub">
+                  {showAddModal
+                    ? "Enter corporate entity, tax, and contact details below."
+                    : "Modify organization information in database."}
+                </div>
               </div>
-              <button className="close" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>×</button>
+              <button
+                className="close"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setShowEditModal(false);
+                }}
+              >
+                ×
+              </button>
             </div>
             <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit}>
               <div className="form-grid">
                 <div className="field">
-                  <label>Organization Name <span className="req">*</span></label>
-                  <input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                  <label>
+                    Organization Name <span className="req">*</span>
+                  </label>
+                  <input
+                    required
+                    placeholder="e.g. RampUp Scrap Pvt Ltd"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Gst</label>
-                  <input value={formData.gst} onChange={(e) => setFormData({...formData, gst: e.target.value})} />
+                  <label>GST Number</label>
+                  <input
+                    placeholder="e.g. 09AAAAA0000A1Z5"
+                    value={formData.gst}
+                    onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Cntct person name</label>
-                  <input value={formData.contactPerson} onChange={(e) => setFormData({...formData, contactPerson: e.target.value})} />
+                  <label>Contact Person Name</label>
+                  <input
+                    placeholder="e.g. Shubham Shukla"
+                    value={formData.contactPerson}
+                    onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Contact nbr</label>
-                  <input value={formData.contactNumber} onChange={(e) => setFormData({...formData, contactNumber: e.target.value})} />
+                  <label>Contact Number</label>
+                  <input
+                    placeholder="e.g. 9876543210"
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Email id</label>
-                  <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                  <label>Email ID</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. contact@rampup.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
                 <div className="field">
-                  <label>Location name</label>
-                  <input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} />
+                  <label>Location Name</label>
+                  <input
+                    placeholder="e.g. Kanpur Industrial Hub"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  />
                 </div>
                 <div className="field">
                   <label>City</label>
-                  <input value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} />
+                  <input
+                    placeholder="e.g. Kanpur"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  />
                 </div>
                 <div className="field">
                   <label>State</label>
-                  <input value={formData.state} onChange={(e) => setFormData({...formData, state: e.target.value})} />
+                  <input
+                    placeholder="e.g. Uttar Pradesh"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  />
                 </div>
                 <div className="field">
                   <label>Pincode</label>
-                  <input value={formData.pincode} onChange={(e) => setFormData({...formData, pincode: e.target.value})} />
+                  <input
+                    placeholder="e.g. 208001"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{showAddModal ? "Add Organization" : "Save Changes"}</button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShowEditModal(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {showAddModal ? "Add Organization" : "Save Changes"}
+                </button>
               </div>
             </form>
           </div>
